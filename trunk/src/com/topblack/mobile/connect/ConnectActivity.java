@@ -3,7 +3,6 @@ package com.topblack.mobile.connect;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 
@@ -13,10 +12,13 @@ import javax.jmdns.ServiceInfo;
 import android.app.Activity;
 import android.content.Context;
 import android.content.Intent;
-import android.content.SharedPreferences;
 import android.net.ConnectivityManager;
 import android.net.NetworkInfo.State;
+import android.net.wifi.WifiInfo;
+import android.net.wifi.WifiManager;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Message;
 import android.util.Log;
 import android.view.View;
 import android.widget.AdapterView;
@@ -26,10 +28,14 @@ import android.widget.ListView;
 import android.widget.SimpleAdapter;
 import android.widget.Toast;
 
+/**
+ * The main activity, which list the available services in the local network.
+ * 
+ * @author 10115154
+ */
 public class ConnectActivity extends Activity {
 
-	private final static String LOG_TAG = SettingsActivity.class
-			.getSimpleName();
+	private final static String LOG_TAG = ConnectActivity.class.getSimpleName();
 
 	// ===================View Models===================
 	// The view model of the service info list
@@ -55,32 +61,42 @@ public class ConnectActivity extends Activity {
 		new Thread(new Runnable() {
 			public void run() {
 				Log.i(LOG_TAG, "refresh services...");
-				
+
 				testUpdateService();
-				
+
 				JmDNS registry = null;
 				try {
 					registry = JmDNS.create();
-				
-					
+
 					List<String> enabledServices = LocalSettings
 							.getEnabledServices(ConnectActivity.this);
 					for (String serviceName : enabledServices) {
 						String serviceType = LocalSettings
 								.getServiceTypeByTitle(serviceName);
 						Log.i(LOG_TAG, "Register service..." + serviceType);
-						
+
 						String text = "Test service";
 						Map<String, byte[]> properties = new HashMap<String, byte[]>();
 						properties.put("srvname", text.getBytes());
 						ServiceInfo service = ServiceInfo.create(serviceType,
-								"apache-someuniqueid", 80, 0, 0, true, properties);
-						
+								"apache-someuniqueid", 80, 0, 0, true,
+								properties);
+
 						registry.registerService(service);
 						Log.i(LOG_TAG, "List service..." + service.getType());
-						ServiceInfo[] services = registry.list(service.getType());
+						final ServiceInfo[] services = registry.list(service
+								.getType());
 						Log.i(LOG_TAG, services.length + " services ("
 								+ serviceType + ") is found.");
+						ConnectActivity.this.runOnUiThread(new Runnable() {
+							public void run() {
+								for (ServiceInfo service : services) {
+									serviceInfoList
+											.add(new ServiceInfoViewModel(service));
+								}
+								notifyServiceListChanged();
+							}
+						});
 					}
 				} catch (Exception ex) {
 					ex.printStackTrace();
@@ -168,9 +184,6 @@ public class ConnectActivity extends Activity {
 	}
 
 	private void initMockData() {
-		serviceInfoList.add(new ServiceInfoViewModel("cn-pdc-d-leonq",
-				"192.168.0.1:8080"));
-		this.notifyServiceListChanged();
 	}
 
 	private boolean checkWifiStatus() {
@@ -178,6 +191,12 @@ public class ConnectActivity extends Activity {
 			ConnectivityManager conMan = (ConnectivityManager) getSystemService(Context.CONNECTIVITY_SERVICE); // Network
 			State wifiState = conMan.getNetworkInfo(
 					ConnectivityManager.TYPE_WIFI).getState();
+
+			WifiManager wifi = (WifiManager) getSystemService(Context.WIFI_SERVICE);
+			WifiInfo info = wifi.getConnectionInfo();
+			String macAddress = info.getMacAddress();
+			LocalSettings.setLocalId(macAddress);
+
 			return wifiState == State.CONNECTED;
 		} catch (Exception ex) {
 			Log.e(this.getClass().getName(), "Check Wifi Status Failed!", ex);

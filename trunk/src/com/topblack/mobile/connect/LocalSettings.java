@@ -13,8 +13,11 @@ import java.util.Map;
 import java.util.Set;
 
 import android.app.Activity;
+import android.content.Context;
 import android.content.SharedPreferences;
 import android.content.SharedPreferences.Editor;
+import android.net.ConnectivityManager;
+import android.net.NetworkInfo.State;
 import android.util.Log;
 
 /**
@@ -34,11 +37,21 @@ public class LocalSettings {
 	public static final String SERVICE_TYPE_ID_FT = "_neighborft._tcp.local.";
 
 	private static Map<String, String> supportedServices = new HashMap<String, String>();
+	
+	private static String localIdentity = null;
 
 	static {
 		supportedServices.put(SERVICE_TYPE_TITLE_IM, SERVICE_TYPE_ID_IM);
 		supportedServices.put(SERVICE_TYPE_TITLE_VC, SERVICE_TYPE_ID_VC);
 		supportedServices.put(SERVICE_TYPE_TITLE_FT, SERVICE_TYPE_ID_FT);
+	}
+	
+	public static void setLocalId(String localId) {
+		localIdentity = localId;
+	}
+	
+	public static String getLocalId() {
+		return localIdentity;
 	}
 	
 	public static String[] getSupportedServiceTitles() {
