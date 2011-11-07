@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="fill_parent"
+    android:layout_height="fill_parent"
+    android:orientation="vertical" >
+
+    <TextView
+        android:id="@+id/serviceControlLabel"
+        android:layout_width="fill_parent"
+        android:layout_height="wrap_content"
+        android:text="Available Services" />
+
+    <ListView
+        android:id="@+id/serviceControlListView"
+        android:layout_width="fill_parent"
+        android:layout_height="fill_parent"
+        android:choiceMode="multipleChoice"
+        android:orientation="vertical" >
+    </ListView>
+
+</LinearLayout>
