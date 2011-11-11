@@ -41,6 +41,8 @@ public class ConnectActivity extends Activity {
 	// The view model of the service info list
 	private List<ServiceInfoViewModel> serviceInfoList = new ArrayList<ServiceInfoViewModel>();
 
+	private ServiceServer server = null;
+	
 	/** Called when the activity is first created. */
 	@Override
 	public void onCreate(Bundle savedInstanceState) {
@@ -55,6 +57,10 @@ public class ConnectActivity extends Activity {
 		if (!checkWifiStatus()) {
 			// this.showToast("No wifi network!");
 		}
+		
+		server = new ServiceServer("HiNeighbor_Control");
+		int startedPort = server.start();
+		Log.i(LOG_TAG, "Started at " + startedPort);
 	}
 
 	private void refreshServices() {
@@ -68,10 +74,10 @@ public class ConnectActivity extends Activity {
 				try {
 					registry = JmDNS.create();
 
-					List<String> enabledServices = LocalSettings
+					List<String> enabledServices = LocalEnvironment
 							.getEnabledServices(ConnectActivity.this);
 					for (String serviceName : enabledServices) {
-						String serviceType = LocalSettings
+						String serviceType = LocalEnvironment
 								.getServiceTypeByTitle(serviceName);
 						Log.i(LOG_TAG, "Register service..." + serviceType);
 
@@ -194,8 +200,9 @@ public class ConnectActivity extends Activity {
 
 			WifiManager wifi = (WifiManager) getSystemService(Context.WIFI_SERVICE);
 			WifiInfo info = wifi.getConnectionInfo();
-			String macAddress = info.getMacAddress();
-			LocalSettings.setLocalId(macAddress);
+			Log.i(LOG_TAG, "IP Address:" + info.getIpAddress());
+			LocalEnvironment.LocalIPAddress = info.getIpAddress();
+			LocalEnvironment.LocalIdentity = info.getMacAddress();
 
 			return wifiState == State.CONNECTED;
 		} catch (Exception ex) {
