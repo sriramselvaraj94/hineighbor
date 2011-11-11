@@ -44,11 +44,13 @@ public class ServiceInfoViewModel extends HashMap<String, String> {
 	public ServiceInfoViewModel(ServiceInfo serviceInfo) {
 		this.qualifiedName = serviceInfo.getQualifiedName();
 		Log.i(LOG_TAG, "Qualified name:" + this.qualifiedName);
-		String[] qualifiedNames = this.qualifiedName.split(".");
+		String[] qualifiedNames = this.qualifiedName.split("\\.");
 		if (qualifiedNames.length > 0) {
 			this.setServiceName(qualifiedNames[0]);
 			this.setServiceIp(serviceInfo.getInet4Address()
 					.getCanonicalHostName());
+			Log.d(LOG_TAG, "Service Name:" + this.getServiceName());
+			Log.d(LOG_TAG, "Service Addr:" + this.getServiceIp());
 		}
 	}
 

@@ -24,9 +24,9 @@ import android.util.Log;
  * @author 10115154
  * 
  */
-public class LocalSettings {
+public class LocalEnvironment {
 
-	private final static String LOG_TAG = LocalSettings.class.getSimpleName();
+	private final static String LOG_TAG = LocalEnvironment.class.getSimpleName();
 
 	public static final String SERVICE_TYPE_TITLE_IM = "Instant Message";
 	public static final String SERVICE_TYPE_TITLE_VC = "Voice Chat";
@@ -38,7 +38,11 @@ public class LocalSettings {
 
 	private static Map<String, String> supportedServices = new HashMap<String, String>();
 	
-	private static String localIdentity = null;
+	public static String LocalIdentity = null;
+	
+	public static int LocalIPAddress = 0;
+	
+	public static int LocalIPPort = 0;
 
 	static {
 		supportedServices.put(SERVICE_TYPE_TITLE_IM, SERVICE_TYPE_ID_IM);
@@ -46,16 +50,8 @@ public class LocalSettings {
 		supportedServices.put(SERVICE_TYPE_TITLE_FT, SERVICE_TYPE_ID_FT);
 	}
 	
-	public static void setLocalId(String localId) {
-		localIdentity = localId;
-	}
-	
-	public static String getLocalId() {
-		return localIdentity;
-	}
-	
 	public static String[] getSupportedServiceTitles() {
-		Set<String> resultSet = LocalSettings.supportedServices.keySet();
+		Set<String> resultSet = LocalEnvironment.supportedServices.keySet();
 		Object[] values = resultSet.toArray();
 		String[] result = new String[values.length];
 		for (int i = 0; i < result.length; i++) {
@@ -71,7 +67,7 @@ public class LocalSettings {
 		try {
 			SharedPreferences preferences = act.getSharedPreferences(
 					"HiNeighbor_Settings", 0);
-			for (String serviceTitle : LocalSettings.supportedServices.keySet()) {
+			for (String serviceTitle : LocalEnvironment.supportedServices.keySet()) {
 				if (preferences.getBoolean(serviceTitle, false)) {
 					result.add(serviceTitle);
 				}

@@ -26,7 +26,7 @@ public class SettingsActivity extends Activity {
 	// ===================View Models===================
 
 	// The view model of the service info list
-	private final static String[] availableServices = LocalSettings
+	private final static String[] availableServices = LocalEnvironment
 			.getSupportedServiceTitles();
 
 	private final static String LOG_TAG = SettingsActivity.class
@@ -89,7 +89,7 @@ public class SettingsActivity extends Activity {
 		for (int i = 0; i < servicesListView.getCount(); i++) {
 			String checkedService = servicesListView.getItemAtPosition(i)
 					.toString();
-			boolean isSettingSelected = LocalSettings.isOptionEnabled(this,
+			boolean isSettingSelected = LocalEnvironment.isOptionEnabled(this,
 					checkedService, false);
 			servicesListView.setItemChecked(i, isSettingSelected);
 		}
@@ -103,7 +103,7 @@ public class SettingsActivity extends Activity {
 		SparseBooleanArray boolArray = servicesListView
 				.getCheckedItemPositions();
 		for (int i = 0; i < boolArray.size(); i++) {
-			LocalSettings.enableOption(this, availableServices[i],
+			LocalEnvironment.enableOption(this, availableServices[i],
 					boolArray.get(i));
 		}
 	}
