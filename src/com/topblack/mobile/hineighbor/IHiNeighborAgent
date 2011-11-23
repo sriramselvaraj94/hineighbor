@@ -1,0 +1,4 @@
+package com.topblack.mobile.hineighbor;
+interface IHiNeighborAgent {
+	List<String> refreshNeighbors();
+}
