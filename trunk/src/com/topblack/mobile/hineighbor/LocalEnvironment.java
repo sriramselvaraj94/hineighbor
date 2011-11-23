@@ -35,6 +35,10 @@ public class LocalEnvironment {
 	public static final String SERVICE_TYPE_ID_IM = "_neighborim._tcp.local.";
 	public static final String SERVICE_TYPE_ID_VC = "_neighborvc._tcp.local.";
 	public static final String SERVICE_TYPE_ID_FT = "_neighborft._tcp.local.";
+	
+	public static final String DEFAULT_NAME = "Neighbor X";
+	
+	public static final String PREFERENCE_NAME = "HiNeighbor_Settings";
 
 	private static Map<String, String> supportedServices = new HashMap<String, String>();
 	
@@ -84,12 +88,12 @@ public class LocalEnvironment {
 		return supportedServices.get(title);
 	}
 
-	public static boolean isOptionEnabled(Activity act, String optionName,
+	public static boolean isOptionEnabled(Context ctx, String optionName,
 			boolean defaultValue) {
-		Log.i(LOG_TAG, act + ": Is Option " + optionName + " Enabled?");
+		Log.i(LOG_TAG, ctx + ": Is Option " + optionName + " Enabled?");
 		try {
-			SharedPreferences preferences = act.getSharedPreferences(
-					"HiNeighbor_Settings", 0);
+			SharedPreferences preferences = ctx.getSharedPreferences(
+					PREFERENCE_NAME, 0);
 			boolean optionValue = preferences.getBoolean(optionName, false);
 			Log.i(LOG_TAG, optionName + ": " + optionValue);
 			return optionValue;
@@ -99,14 +103,40 @@ public class LocalEnvironment {
 		return defaultValue;
 	}
 
-	public static void enableOption(Activity act, String optionName,
+	public static void enableOption(Context ctx, String optionName,
 			boolean enable) {
-		Log.i(LOG_TAG, act + ": Set Option " + optionName + " to " + enable);
+		Log.i(LOG_TAG, ctx + ": Set Option " + optionName + " to " + enable);
 		try {
-			SharedPreferences preferences = act.getSharedPreferences(
-					"HiNeighbor_Settings", 0);
+			SharedPreferences preferences = ctx.getSharedPreferences(
+					PREFERENCE_NAME, 0);
 			Editor editor = preferences.edit();
 			editor.putBoolean(optionName, enable);
+			editor.commit();
+		} catch (Exception ex) {
+			Log.e(LOG_TAG, ex.getMessage());
+		}
+	}
+	
+	public static String getLocalName(Context ctx) {
+		Log.i(LOG_TAG, ctx + ": get local name ...");
+
+		try {
+			SharedPreferences preferences = ctx.getSharedPreferences(
+					PREFERENCE_NAME, 0);
+			return preferences.getString("LocalName", DEFAULT_NAME);
+		} catch (Exception ex) {
+			Log.e(LOG_TAG, ex.getMessage());
+			return DEFAULT_NAME;
+		}
+	}
+	
+	public static void setLocalName(Context ctx, String name) {
+		Log.i(LOG_TAG, ctx + ": set local name to " + name);
+		try {
+			SharedPreferences preferences = ctx.getSharedPreferences(
+					PREFERENCE_NAME, 0);
+			Editor editor = preferences.edit();
+			editor.putString("LocalName", name);
 			editor.commit();
 		} catch (Exception ex) {
 			Log.e(LOG_TAG, ex.getMessage());

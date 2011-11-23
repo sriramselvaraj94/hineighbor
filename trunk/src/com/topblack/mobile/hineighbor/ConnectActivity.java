@@ -12,14 +12,17 @@ import javax.jmdns.ServiceInfo;
 import com.topblack.mobile.hineighbor.R;
 
 import android.app.Activity;
+import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
+import android.content.ServiceConnection;
 import android.net.ConnectivityManager;
 import android.net.NetworkInfo.State;
 import android.net.wifi.WifiInfo;
 import android.net.wifi.WifiManager;
 import android.os.Bundle;
 import android.os.Handler;
+import android.os.IBinder;
 import android.os.Message;
 import android.util.Log;
 import android.view.View;
@@ -43,7 +46,7 @@ public class ConnectActivity extends Activity {
 	// The view model of the service info list
 	private List<ServiceInfoViewModel> serviceInfoList = new ArrayList<ServiceInfoViewModel>();
 
-	private ServiceServer server = null;
+	
 	
 	/** Called when the activity is first created. */
 	@Override
@@ -55,19 +58,22 @@ public class ConnectActivity extends Activity {
 		this.initEventHandlers();
 
 		this.initMockData();
-
-		if (!checkWifiStatus()) {
-			// this.showToast("No wifi network!");
-		}
 		
 		HiNeighborService.startService(this);
 		
-		server = new ServiceServer("HiNeighbor_Control");
-		int startedPort = server.start();
-		Log.i(LOG_TAG, "Started at " + startedPort);
+		Intent intent = new Intent();
+		intent.setClass(this, HiNeighborService.class);
+		this.startService(intent);
+		this.bindService(intent, this.serviceConnection, Context.BIND_AUTO_CREATE);
+	}
+	
+	@Override
+	public void onDestroy() {
+		this.unbindService(this.serviceConnection);
+		super.onDestroy();
 	}
 
-	private void refreshServices() {
+/*	private void refreshServices() {
 		new Thread(new Runnable() {
 			public void run() {
 				Log.i(LOG_TAG, "refresh services...");
@@ -76,28 +82,7 @@ public class ConnectActivity extends Activity {
 
 				JmDNS registry = null;
 				try {
-					registry = JmDNS.create();
 
-					List<String> enabledServices = LocalEnvironment
-							.getEnabledServices(ConnectActivity.this);
-					for (String serviceName : enabledServices) {
-						String serviceType = LocalEnvironment
-								.getServiceTypeByTitle(serviceName);
-						Log.i(LOG_TAG, "Register service..." + serviceType);
-
-						String text = "Test service";
-						Map<String, byte[]> properties = new HashMap<String, byte[]>();
-						properties.put("srvname", text.getBytes());
-						ServiceInfo service = ServiceInfo.create(serviceType,
-								"apache-someuniqueid", 80, 0, 0, true,
-								properties);
-
-						registry.registerService(service);
-						Log.i(LOG_TAG, "List service..." + service.getType());
-						final ServiceInfo[] services = registry.list(service
-								.getType());
-						Log.i(LOG_TAG, services.length + " services ("
-								+ serviceType + ") is found.");
 						ConnectActivity.this.runOnUiThread(new Runnable() {
 							public void run() {
 								for (ServiceInfo service : services) {
@@ -114,11 +99,12 @@ public class ConnectActivity extends Activity {
 				}
 			}
 		}).start();
-	}
+	}*/
 
 	private void onRefreshButtonClicked(View source) {
 		this.showToast("Clicked " + ((Button) source).getText());
-		this.refreshServices();
+		//this.refreshServices();
+		this.hiNeighborService.getAvailableServices();
 	}
 
 	private void onSettingsButtonClicked(View source) {
@@ -266,4 +252,20 @@ public class ConnectActivity extends Activity {
 		Toast.makeText(this, servicesListView.getItemAtPosition(id).toString(),
 				Toast.LENGTH_SHORT).show();
 	}
+	
+	private IHiNeighborService hiNeighborService = null;
+	
+	private ServiceConnection serviceConnection = new ServiceConnection() {
+		
+		@Override
+		public void onServiceConnected(ComponentName name, IBinder service) {
+			hiNeighborService = (IHiNeighborService)service;
+			Log.v(LOG_TAG, "on service connected.");
+		}
+		
+		@Override
+		public void onServiceDisconnected(ComponentName name) {
+			hiNeighborService = null;
+		}
+	};
 }
