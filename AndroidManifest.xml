@@ -2,7 +2,8 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="com.topblack.mobile.hineighbor"
     android:versionCode="1"
-    android:versionName="1.0" >
+    android:versionName="1.0" 
+    >
 
     <uses-sdk android:minSdkVersion="7" />
 
@@ -11,20 +12,38 @@
         android:label="@string/app_name" >
         <activity
             android:label="@string/app_name"
-            android:name="com.topblack.mobile.hineighbor.ConnectActivity" >
+            android:name="com.topblack.mobile.hineighbor.ConnectActivity" 
+            android:screenOrientation="portrait">
             <intent-filter >
                 <action android:name="android.intent.action.MAIN" />
 
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
-        <activity android:name="com.topblack.mobile.hineighbor.SettingsActivity"></activity>
-        <activity android:name="com.topblack.mobile.hineighbor.ChatActivity"></activity>
-        <service android:name="com.topblack.mobile.hineighbor.HiNeighborService" android:exported="true"></service>
+        <activity android:name="com.topblack.mobile.hineighbor.SettingsActivity" 
+            android:screenOrientation="portrait">
+        </activity>
+        <activity android:name="com.topblack.mobile.hineighbor.ChatActivity" 
+            android:screenOrientation="portrait">
+        </activity>
+
+        <service
+            android:exported="true"
+            android:name="com.topblack.mobile.hineighbor.HiNeighborService" >
+        </service>
+
+        <!--  
+        <receiver android:name="com.topblack.mobile.hineighbor.MessageReceiver" >
+            <intent-filter >
+                <action android:name="com.topblack.mobile.hineighbor.MessageReceiver" />
+            </intent-filter>          
+        </receiver>
+        -->
     </application>
-    
-    <uses-permission android:name="android.permission.CHANGE_WIFI_MULTICAST_STATE"/>
-	<uses-permission android:name="android.permission.INTERNET" />
-	<uses-permission android:name="android.permission.ACCESS_WIFI_STATE"/>
-	<uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>
+
+    <uses-permission android:name="android.permission.CHANGE_WIFI_MULTICAST_STATE" />
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+
 </manifest>
