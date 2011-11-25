@@ -20,5 +20,5 @@ public abstract class RequestHandler {
 		this.processor = processor;
 	}
 	
-	public abstract void handleRequest()  throws Exception;
+	public abstract int handleRequest(byte[] body) throws Exception;
 }
