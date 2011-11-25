@@ -15,11 +15,13 @@ import javax.jmdns.ServiceInfo;
  *
  */
 public interface IHiNeighborService {
-	List<ServiceInfo> getAvailableServices();
+	List<Neighbor> getActiveNeighbors();
 	
-	void postMessage(String targetId, String message);
+	Message postMessage(String targetId, String message);
 	
 	Message getMessage(String messageId, boolean markAsRead);
+	
+	List<Message> getRecentMessages(String sourceId);
 	
 	List<Message> getUnreadMessages(String sourceId, boolean markAsRead);
 	
