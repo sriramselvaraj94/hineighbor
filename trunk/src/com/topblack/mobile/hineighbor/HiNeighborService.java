@@ -58,7 +58,7 @@ public class HiNeighborService extends Service {
 	private Map<Neighbor, List<Message>> recentMessages = new HashMap<Neighbor, List<Message>>();
 
 	// Defines the timeout value for the communication with the neighbor.
-	private static final int ACTIVITY_TIMEOUT = 60 * 1000; // ms
+	private static final int ACTIVITY_TIMEOUT = 10 * 60 * 1000; // ms
 
 	private ServiceServer server = null;
 
