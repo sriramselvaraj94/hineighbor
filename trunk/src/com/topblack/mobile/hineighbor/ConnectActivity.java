@@ -1,29 +1,17 @@
 package com.topblack.mobile.hineighbor;
 
-import java.io.IOException;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
-import javax.jmdns.JmDNS;
 import javax.jmdns.ServiceInfo;
-
-import com.topblack.mobile.hineighbor.R;
 
 import android.app.Activity;
 import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
 import android.content.ServiceConnection;
-import android.net.ConnectivityManager;
-import android.net.NetworkInfo.State;
-import android.net.wifi.WifiInfo;
-import android.net.wifi.WifiManager;
 import android.os.Bundle;
-import android.os.Handler;
 import android.os.IBinder;
-import android.os.Message;
 import android.util.Log;
 import android.view.View;
 import android.widget.AdapterView;
@@ -38,7 +26,7 @@ import android.widget.Toast;
  * 
  * @author 10115154
  */
-public class ConnectActivity extends Activity {
+public class ConnectActivity extends Activity implements INotificationListener{
 
 	private final static String LOG_TAG = ConnectActivity.class.getSimpleName();
 
@@ -46,8 +34,6 @@ public class ConnectActivity extends Activity {
 	// The view model of the service info list
 	private List<ServiceInfoViewModel> serviceInfoList = new ArrayList<ServiceInfoViewModel>();
 
-	
-	
 	/** Called when the activity is first created. */
 	@Override
 	public void onCreate(Bundle savedInstanceState) {
@@ -57,54 +43,51 @@ public class ConnectActivity extends Activity {
 		this.initViewModels();
 		this.initEventHandlers();
 
-		this.initMockData();
-		
 		HiNeighborService.startService(this);
-		
+
 		Intent intent = new Intent();
 		intent.setClass(this, HiNeighborService.class);
 		this.startService(intent);
-		this.bindService(intent, this.serviceConnection, Context.BIND_AUTO_CREATE);
+		this.bindService(intent, this.serviceConnection,
+				Context.BIND_AUTO_CREATE);
+		
 	}
-	
+
 	@Override
 	public void onDestroy() {
+		hiNeighborService.unregisterListener(this);
 		this.unbindService(this.serviceConnection);
 		super.onDestroy();
 	}
-
-/*	private void refreshServices() {
+	
+	private void refreshServices() {
+		final List<ServiceInfo> availableServices = this.hiNeighborService.getAvailableServices();
+		
 		new Thread(new Runnable() {
 			public void run() {
 				Log.i(LOG_TAG, "refresh services...");
-
-				testUpdateService();
-
-				JmDNS registry = null;
 				try {
-
-						ConnectActivity.this.runOnUiThread(new Runnable() {
-							public void run() {
-								for (ServiceInfo service : services) {
-									serviceInfoList
-											.add(new ServiceInfoViewModel(service));
-								}
-								notifyServiceListChanged();
+					ConnectActivity.this.runOnUiThread(new Runnable() {
+						public void run() {
+							serviceInfoList.clear();
+							for (ServiceInfo service : availableServices) {
+								serviceInfoList.add(new ServiceInfoViewModel(
+										service));
 							}
-						});
-					}
+							notifyServiceListChanged();
+						}
+					});
 				} catch (Exception ex) {
 					ex.printStackTrace();
 					Log.e(LOG_TAG, ex.toString());
 				}
 			}
 		}).start();
-	}*/
+	}
 
 	private void onRefreshButtonClicked(View source) {
 		this.showToast("Clicked " + ((Button) source).getText());
-		//this.refreshServices();
-		this.hiNeighborService.getAvailableServices();
+		this.refreshServices();
 	}
 
 	private void onSettingsButtonClicked(View source) {
@@ -179,93 +162,40 @@ public class ConnectActivity extends Activity {
 		});
 	}
 
-	private void initMockData() {
-	}
-
-	private boolean checkWifiStatus() {
-		try {
-			ConnectivityManager conMan = (ConnectivityManager) getSystemService(Context.CONNECTIVITY_SERVICE); // Network
-			State wifiState = conMan.getNetworkInfo(
-					ConnectivityManager.TYPE_WIFI).getState();
-
-			WifiManager wifi = (WifiManager) getSystemService(Context.WIFI_SERVICE);
-			WifiInfo info = wifi.getConnectionInfo();
-			Log.i(LOG_TAG, "IP Address:" + info.getIpAddress());
-			LocalEnvironment.LocalIPAddress = info.getIpAddress();
-			LocalEnvironment.LocalIdentity = info.getMacAddress();
-
-			return wifiState == State.CONNECTED;
-		} catch (Exception ex) {
-			Log.e(this.getClass().getName(), "Check Wifi Status Failed!", ex);
-			this.showToast(ex.toString());
-			return false;
-		}
-
-	}
-
 	private void notifyServiceListChanged() {
 		ListView servicesListView = (ListView) this
 				.findViewById(R.id.servicesListView);
 		((SimpleAdapter) servicesListView.getAdapter()).notifyDataSetChanged();
 	}
 
-	private void testUpdateService() {
-		String text = "Test hypothetical web server";
-		Map<String, byte[]> properties = new HashMap<String, byte[]>();
-		properties.put("srvname", text.getBytes());
-		ServiceInfo service = ServiceInfo.create("_html._tcp.local.",
-				"apache-someuniqueid", 80, 0, 0, true, properties);
-		JmDNS registry = null;
-		Exception occuredEx = null;
-		int serviceCount = 0;
-		try {
-			registry = JmDNS.create();
-			registry.registerService(service);
-
-			ServiceInfo[] services = registry.list(service.getType());
-
-			serviceCount = services.length;
-			Log.d(LOG_TAG, serviceCount + " services found");
-		} catch (IOException ex) {
-			this.showToast(ex.toString());
-			occuredEx = ex;
-		} finally {
-			if (registry != null) {
-				try {
-					registry.close();
-				} catch (IOException ex) {
-					this.showToast(ex.toString());
-					occuredEx = ex;
-				}
-			}
-		}
-	}
 
 	private void showToast(String text) {
 		Toast.makeText(this, text, Toast.LENGTH_SHORT).show();
 	}
 
-	private void showToast(int id) {
-		ListView servicesListView = (ListView) this
-				.findViewById(R.id.servicesListView);
-
-		Toast.makeText(this, servicesListView.getItemAtPosition(id).toString(),
-				Toast.LENGTH_SHORT).show();
-	}
-	
 	private IHiNeighborService hiNeighborService = null;
-	
+
 	private ServiceConnection serviceConnection = new ServiceConnection() {
-		
+
 		@Override
 		public void onServiceConnected(ComponentName name, IBinder service) {
-			hiNeighborService = (IHiNeighborService)service;
+			hiNeighborService = (IHiNeighborService) service;
+			hiNeighborService.registerListener(ConnectActivity.this);
 			Log.v(LOG_TAG, "on service connected.");
 		}
-		
+
 		@Override
 		public void onServiceDisconnected(ComponentName name) {
 			hiNeighborService = null;
 		}
 	};
+
+	/* (non-Javadoc)
+	 * @see com.topblack.mobile.hineighbor.INotificationListener#notificationReceived(java.lang.String)
+	 */
+	@Override
+	public void notificationReceived(String notificationId) {
+		// TODO Auto-generated method stub
+		Log.i(LOG_TAG, "Received notification " + notificationId);
+	}
 }

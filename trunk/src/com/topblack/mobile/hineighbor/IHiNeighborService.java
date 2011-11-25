@@ -17,5 +17,13 @@ import javax.jmdns.ServiceInfo;
 public interface IHiNeighborService {
 	List<ServiceInfo> getAvailableServices();
 	
-	ISession getSession(ServiceInfo target, SessionInfo session);
+	void postMessage(String targetId, String message);
+	
+	Message getMessage(String messageId, boolean markAsRead);
+	
+	List<Message> getUnreadMessages(String sourceId, boolean markAsRead);
+	
+	void registerListener(INotificationListener listener);
+	
+	void unregisterListener(INotificationListener listener);
 }

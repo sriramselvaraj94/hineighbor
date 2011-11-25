@@ -47,10 +47,8 @@ public class ServiceInfoViewModel extends HashMap<String, String> {
 		String[] qualifiedNames = this.qualifiedName.split("\\.");
 		if (qualifiedNames.length > 0) {
 			this.setServiceName(qualifiedNames[0]);
-			this.setServiceIp(serviceInfo.getInet4Address()
-					.getCanonicalHostName());
+			this.setServiceDesc(serviceInfo.getQualifiedName());
 			Log.d(LOG_TAG, "Service Name:" + this.getServiceName());
-			Log.d(LOG_TAG, "Service Addr:" + this.getServiceIp());
 		}
 	}
 

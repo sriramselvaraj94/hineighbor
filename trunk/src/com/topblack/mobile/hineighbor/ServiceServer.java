@@ -46,9 +46,6 @@ public class ServiceServer {
 	// The main socket which listen to the local port
 	private ServerSocket serverSocket = null;
 
-	// The map which maintains all the incoming connection.
-	private Map<InetAddress, ClientProcessor> clientMap = new HashMap<InetAddress, ClientProcessor>();
-
 	private String serverName = null;
 
 	private int serverPort = -1;
@@ -72,14 +69,8 @@ public class ServiceServer {
 				InetAddress sourceAddress = sessionSocket.getInetAddress();
 				Log.i(LOG_TAG, "Accepted new incoming connection ... "
 						+ sourceAddress.toString());
-				if (clientMap.containsKey(sourceAddress)) {
-					ClientProcessor legacyProcessor = clientMap
-							.get(sourceAddress);
-					legacyProcessor.shutdown();
-				}
-				ClientProcessor processor = new ClientProcessor(sessionSocket);
-				processor.start();
-				clientMap.put(sourceAddress, processor);
+
+				ClientProcessorFactory.getInstance().createProcessor(sessionSocket).start();
 			} catch (IOException e) {
 				// TODO Auto-generated catch block
 				e.printStackTrace();

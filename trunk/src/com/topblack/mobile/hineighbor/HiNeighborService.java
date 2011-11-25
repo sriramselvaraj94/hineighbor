@@ -16,6 +16,9 @@ import javax.jmdns.ServiceEvent;
 import javax.jmdns.ServiceInfo;
 import javax.jmdns.ServiceListener;
 
+import android.app.Notification;
+import android.app.NotificationManager;
+import android.app.PendingIntent;
 import android.app.Service;
 import android.content.Context;
 import android.content.Intent;
@@ -24,9 +27,7 @@ import android.net.NetworkInfo.State;
 import android.net.wifi.WifiInfo;
 import android.net.wifi.WifiManager;
 import android.os.Binder;
-import android.os.Handler;
 import android.os.IBinder;
-import android.os.Message;
 import android.util.Log;
 
 /**
@@ -43,14 +44,20 @@ public class HiNeighborService extends Service {
 	private ServiceInfo localServiceInfo = null;
 
 	private List<ServiceInfo> availableServiceInfos = new LinkedList<ServiceInfo>();
+	
+	
 
 	private ServiceServer server = null;
-	
+
 	private boolean started = false;
-	
-	private Handler clientMessageHandler = null;
 
 	private JmDNS registry = null;
+
+	private final Map<String, com.topblack.mobile.hineighbor.Message> unreadMessages = new HashMap<String, com.topblack.mobile.hineighbor.Message>();
+
+	private List<INotificationListener> notificationListeners = new LinkedList<INotificationListener>();
+
+	private NotificationManager notificationManager = null;
 
 	public static void startService(Context context) {
 		Log.i(LOG_TAG, "Starting HiNeighborService...");
@@ -80,33 +87,33 @@ public class HiNeighborService extends Service {
 			return false;
 		}
 	}
-	
+
 	/*
 	 * 
-	 * byte[] bytes = BigInteger.valueOf(ipAddress).toByteArray();
-			InetAddress address = InetAddress.getByAddress(bytes);
-	 * (non-Javadoc)
+	 * byte[] bytes = BigInteger.valueOf(ipAddress).toByteArray(); InetAddress
+	 * address = InetAddress.getByAddress(bytes); (non-Javadoc)
+	 * 
 	 * @see android.app.Service#onCreate()
 	 */
 
 	public void onCreate() {
 		try {
 			registry = JmDNS.create();
-			WifiManager wm = (WifiManager)getSystemService(Context.WIFI_SERVICE); 
-			WifiManager.MulticastLock multicastLock = wm.createMulticastLock("mydebuginfo");
+			WifiManager wm = (WifiManager) getSystemService(Context.WIFI_SERVICE);
+			WifiManager.MulticastLock multicastLock = wm
+					.createMulticastLock("mydebuginfo");
 			multicastLock.acquire();
 		} catch (Exception ex) {
 			Log.e(LOG_TAG, "Unable to create mDNS service! " + ex.getMessage());
 			return;
 		}
 
+		this.chatMessageHandler.start();
+		MessageRouter.getInstance().registerMessageHandler(
+				this.chatMessageHandler);
 		this.server = new ServiceServer("HiNeighbor_Control");
-		
-		this.clientMessageHandler = new Handler() {
-			public void handleMessage(Message msg) {
-				Log.i(LOG_TAG, msg.toString());
-			}
-		};
+
+		notificationManager = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
 
 		super.onCreate();
 		Log.i(LOG_TAG, "HiNeighborService is created!");
@@ -138,20 +145,20 @@ public class HiNeighborService extends Service {
 		Log.i(LOG_TAG, "Local Identify:" + localIdentify);
 		ServiceInfo service = ServiceInfo.create(SERVICE_TYPE, localIdentify,
 				startedPort, 0, 0, true, properties);
-		
+
 		registry.addServiceListener(service.getType(), serviceListener);
-		
+
 		try {
 			Log.i(LOG_TAG, "Registering local service " + service);
 			registry.registerService(service);
-			
+
 			localServiceInfo = service;
 		} catch (Exception ex) {
 			Log.i(LOG_TAG, "Failed to register service " + localIdentify + ". "
 					+ ex.getMessage());
 		}
 	}
-	
+
 	private ServiceListener serviceListener = new ServiceListener() {
 		@Override
 		public void serviceAdded(ServiceEvent event) {
@@ -174,11 +181,16 @@ public class HiNeighborService extends Service {
 
 	/**
 	 * Threadsafe function to update the service cache.
-	 * @param info the service info to update.
-	 * @param isAdd indicate if this service is to add or remove
+	 * 
+	 * @param info
+	 *            the service info to update.
+	 * @param isAdd
+	 *            indicate if this service is to add or remove
 	 */
-	private synchronized void updateAvailableService(ServiceInfo info, boolean isAdd) {
-		Log.i(LOG_TAG, "Updating available services... isAdd?" + isAdd + ", info?" + info);
+	private synchronized void updateAvailableService(ServiceInfo info,
+			boolean isAdd) {
+		Log.i(LOG_TAG, "Updating available services... isAdd?" + isAdd
+				+ ", info?" + info);
 		if (info == null) {
 			return;
 		}
@@ -190,10 +202,11 @@ public class HiNeighborService extends Service {
 		} else {
 			this.availableServiceInfos.remove(info);
 		}
-		
-		Log.v(LOG_TAG, this.availableServiceInfos.size() + " services are available.");
+
+		Log.v(LOG_TAG, this.availableServiceInfos.size()
+				+ " services are available.");
 	}
-	
+
 	/**
 	 * Query the available services in the local network. (Async)
 	 */
@@ -202,15 +215,18 @@ public class HiNeighborService extends Service {
 		new Thread() {
 			public void run() {
 				try {
-					ServiceInfo[] sinfos = registry.list(localServiceInfo.getType());
+					ServiceInfo[] sinfos = registry.list(localServiceInfo
+							.getType());
 					Log.v(LOG_TAG, "Retrieved " + sinfos.length + " services.");
+					HiNeighborService.this.notifyAll("TestNotificationId");
 					for (ServiceInfo info : sinfos) {
 						Log.i(LOG_TAG, "Got service " + info.toString());
-						if (info.getName().equalsIgnoreCase(LocalEnvironment.LocalIdentity)) {
+						if (info.getName().equalsIgnoreCase(
+								LocalEnvironment.LocalIdentity)) {
 							Log.d(LOG_TAG, "Detected local service.");
 							continue;
 						}
-						
+
 						updateAvailableService(info, true);
 					}
 				} catch (Exception ex) {
@@ -226,7 +242,7 @@ public class HiNeighborService extends Service {
 			Log.e(LOG_TAG, "Wifi connection is not available.");
 			return;
 		}
-		
+
 		if (!this.started) {
 			this.startLocalService();
 			this.resetAvailableServices();
@@ -239,12 +255,17 @@ public class HiNeighborService extends Service {
 
 	public void onDestroy() {
 		try {
+			this.chatMessageHandler.stop();
+			MessageRouter.getInstance().unregisterMessageHandler(
+					this.chatMessageHandler);
+
 			if (this.registry != null) {
-				this.registry.removeServiceListener(this.localServiceInfo.getType(), this.serviceListener);
+				this.registry.removeServiceListener(
+						this.localServiceInfo.getType(), this.serviceListener);
 				this.registry.unregisterAllServices();
 				this.registry.close();
 			}
-			
+
 			if (this.server != null) {
 				this.server.stop();
 			}
@@ -255,10 +276,38 @@ public class HiNeighborService extends Service {
 		super.onDestroy();
 		Log.i(LOG_TAG, "HiNeighborService is destroyed!");
 	}
-	
+
+	private void notifyAll(String notificationId) {
+		Log.i(LOG_TAG, "Notify all, " + notificationId);
+		for (INotificationListener listener : this.notificationListeners) {
+			Log.d(LOG_TAG, "Notify listener " + listener + " ...");
+			listener.notificationReceived(notificationId);
+		}
+	}
+
+	private static final int NotificationId = 20111124;
+
+	private void notifyUser(String title, String content) {
+		this.notificationManager.cancel(NotificationId);
+		Notification notification = new Notification();
+
+		notification.icon = R.drawable.ic_launcher;
+		Intent notificationIntent = new Intent(this, ConnectActivity.class);
+		PendingIntent contentIntent = PendingIntent.getActivity(this, 0,
+				notificationIntent, 0);
+		notification.tickerText = "Hi, Neighbor!";
+		notification.setLatestEventInfo(this, title, content, contentIntent);
+
+		notificationManager.notify(NotificationId, notification);
+	}
+
 	private IBinder serviceBinder = new ServiceBinder();
 
-	/* (non-Javadoc)
+	private MessageHandler chatMessageHandler = new ChatMessageHandler();
+
+	/*
+	 * (non-Javadoc)
+	 * 
 	 * @see android.app.Service#onBind(android.content.Intent)
 	 */
 	@Override
@@ -268,10 +317,41 @@ public class HiNeighborService extends Service {
 		return serviceBinder;
 	}
 
-	public class ServiceBinder extends Binder implements IHiNeighborService{
+	public class ChatMessageHandler extends MessageHandler {
 
-		/* (non-Javadoc)
-		 * @see com.topblack.mobile.hineighbor.IHiNeighborService#getAvailableServices()
+		public ChatMessageHandler() {
+			super(new String[] { "TXTCHAT" });
+		}
+
+		/*
+		 * (non-Javadoc)
+		 * 
+		 * @see
+		 * com.topblack.mobile.hineighbor.MessageHandler#handleMessage(com.topblack
+		 * .mobile.hineighbor.Message)
+		 */
+		@Override
+		protected void handleMessage(
+				com.topblack.mobile.hineighbor.Message message) {
+			// TODO Auto-generated method stub
+			Log.i(LOG_TAG,
+					"ChatMessageHandler:Handle message - " + message.toString());
+			notifyUser("Hi, Neighbor!", message.getSourceId().getNickName()
+					+ ":" + message.getMessageContent());
+			unreadMessages.put(message.getMessageId(), message);
+			HiNeighborService.this.notifyAll(message.getMessageId());
+		}
+
+	}
+
+	public class ServiceBinder extends Binder implements IHiNeighborService {
+
+		/*
+		 * (non-Javadoc)
+		 * 
+		 * @see
+		 * com.topblack.mobile.hineighbor.IHiNeighborService#getAvailableServices
+		 * ()
 		 */
 		@Override
 		public List<ServiceInfo> getAvailableServices() {
@@ -280,14 +360,28 @@ public class HiNeighborService extends Service {
 			return availableServiceInfos;
 		}
 
-		/* (non-Javadoc)
-		 * @see com.topblack.mobile.hineighbor.IHiNeighborService#getSession(javax.jmdns.ServiceInfo, com.topblack.mobile.hineighbor.SessionInfo)
-		 */
-		@Override
-		public ISession getSession(ServiceInfo target, SessionInfo session) {
-			// TODO Auto-generated method stub
+		public void postMessage(String targetId, String message) {
+			
+		}
+
+		public com.topblack.mobile.hineighbor.Message getMessage(
+				String messageId, boolean markAsRead) {
 			return null;
 		}
-		
+
+		public List<com.topblack.mobile.hineighbor.Message> getUnreadMessages(
+				String sourceId, boolean markAsRead) {
+			return null;
+		}
+
+		public void registerListener(INotificationListener listener) {
+			Log.i(LOG_TAG, "Register listener " + listener + " ...");
+			notificationListeners.add(listener);
+		}
+
+		public void unregisterListener(INotificationListener listener) {
+			notificationListeners.remove(listener);
+		}
 	}
+
 }
