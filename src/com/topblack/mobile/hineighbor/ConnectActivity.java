@@ -100,10 +100,6 @@ public class ConnectActivity extends Activity implements INotificationListener,
 					}
 					notifyServiceListChanged();
 
-					if (activeNeighborsViewModel.size() == 0) {
-						rebindService();
-					}
-
 					Log.i(LOG_TAG, "refresh completed!");
 				} catch (Exception ex) {
 					ex.printStackTrace();
