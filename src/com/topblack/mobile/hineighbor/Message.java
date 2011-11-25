@@ -23,8 +23,8 @@ public class Message {
 
 	private String messageContent = null;
 
-	public Message(String subType, String targetId, String messageContent) {
-		this.sourceId = new Neighbor(LocalEnvironment.LocalIdentity);
+	public Message(String subType, String sourceId, String targetId, String messageContent) {
+		this.sourceId = new Neighbor(sourceId);
 		this.targetId = new Neighbor(targetId);
 		this.messageContent = messageContent;
 		this.createdTime = System.currentTimeMillis();

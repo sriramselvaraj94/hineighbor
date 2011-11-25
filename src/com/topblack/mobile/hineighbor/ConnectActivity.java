@@ -3,8 +3,6 @@ package com.topblack.mobile.hineighbor;
 import java.util.ArrayList;
 import java.util.List;
 
-import javax.jmdns.ServiceInfo;
-
 import android.app.Activity;
 import android.content.ComponentName;
 import android.content.Context;
@@ -19,6 +17,7 @@ import android.widget.Button;
 import android.widget.ListAdapter;
 import android.widget.ListView;
 import android.widget.SimpleAdapter;
+import android.widget.TextView;
 import android.widget.Toast;
 
 /**
@@ -26,13 +25,14 @@ import android.widget.Toast;
  * 
  * @author 10115154
  */
-public class ConnectActivity extends Activity implements INotificationListener{
+public class ConnectActivity extends Activity implements INotificationListener,
+		IEnvironmentChangeListener {
 
 	private final static String LOG_TAG = ConnectActivity.class.getSimpleName();
 
 	// ===================View Models===================
 	// The view model of the service info list
-	private List<ServiceInfoViewModel> serviceInfoList = new ArrayList<ServiceInfoViewModel>();
+	private List<NeighborViewModel> activeNeighborsViewModel = new ArrayList<NeighborViewModel>();
 
 	/** Called when the activity is first created. */
 	@Override
@@ -40,43 +40,71 @@ public class ConnectActivity extends Activity implements INotificationListener{
 		super.onCreate(savedInstanceState);
 		setContentView(R.layout.main);
 
+		LocalEnvironment.registerListener(this);
+
+		this.applyNewSettings();
+
 		this.initViewModels();
 		this.initEventHandlers();
 
-		HiNeighborService.startService(this);
+		this.rebindService();
 
+	}
+
+	private void rebindService() {
 		Intent intent = new Intent();
 		intent.setClass(this, HiNeighborService.class);
+		this.stopService(intent);
 		this.startService(intent);
 		this.bindService(intent, this.serviceConnection,
 				Context.BIND_AUTO_CREATE);
-		
 	}
 
 	@Override
 	public void onDestroy() {
-		hiNeighborService.unregisterListener(this);
-		this.unbindService(this.serviceConnection);
+		try {
+			hiNeighborService.unregisterListener(this);
+			this.unbindService(this.serviceConnection);
+
+		} catch (Exception ex) {
+			Log.e(LOG_TAG, "Exception occur during destroying the app.");
+		}
+
 		super.onDestroy();
 	}
-	
+
 	private void refreshServices() {
-		final List<ServiceInfo> availableServices = this.hiNeighborService.getAvailableServices();
-		
+		Log.i(LOG_TAG, "Refresh available neighbors...");
+		final List<Neighbor> activeNeighbors = this.hiNeighborService
+				.getActiveNeighbors();
+		Log.d(LOG_TAG, activeNeighbors.size() + " active neighbors are found!");
+
 		new Thread(new Runnable() {
 			public void run() {
-				Log.i(LOG_TAG, "refresh services...");
+				Log.i(LOG_TAG, "refresh UI...");
 				try {
-					ConnectActivity.this.runOnUiThread(new Runnable() {
-						public void run() {
-							serviceInfoList.clear();
-							for (ServiceInfo service : availableServices) {
-								serviceInfoList.add(new ServiceInfoViewModel(
-										service));
+
+					synchronized (activeNeighborsViewModel) {
+						activeNeighborsViewModel.clear();
+						for (Neighbor neighbor : activeNeighbors) {
+							NeighborViewModel vm = new NeighborViewModel(
+									neighbor);
+							vm.setNeighborUnreadCount(ConnectActivity.this
+									.getUnreadMessageCount(neighbor));
+							if (activeNeighborsViewModel.contains(vm)) {
+								activeNeighborsViewModel.remove(vm);
 							}
-							notifyServiceListChanged();
+
+							activeNeighborsViewModel.add(vm);
 						}
-					});
+					}
+					notifyServiceListChanged();
+
+					if (activeNeighborsViewModel.size() == 0) {
+						rebindService();
+					}
+
+					Log.i(LOG_TAG, "refresh completed!");
 				} catch (Exception ex) {
 					ex.printStackTrace();
 					Log.e(LOG_TAG, ex.toString());
@@ -85,9 +113,25 @@ public class ConnectActivity extends Activity implements INotificationListener{
 		}).start();
 	}
 
+	private int getUnreadMessageCount(Neighbor target) {
+		Log.d(LOG_TAG, this.hiNeighborService + " get unread message count of "
+				+ target);
+		try {
+			return this.hiNeighborService.getUnreadMessages(
+					target.getIdentity(), false).size();
+		} catch (Exception ex) {
+			Log.d(LOG_TAG, ex.toString());
+			return 0;
+		}
+	}
+
 	private void onRefreshButtonClicked(View source) {
-		this.showToast("Clicked " + ((Button) source).getText());
 		this.refreshServices();
+	}
+
+	private void applyNewSettings() {
+		TextView localNameLabel = (TextView) this.findViewById(R.id.localName);
+		localNameLabel.setText(LocalEnvironment.getLocalName(this));
 	}
 
 	private void onSettingsButtonClicked(View source) {
@@ -98,22 +142,28 @@ public class ConnectActivity extends Activity implements INotificationListener{
 
 	private void onServiceListItemSelected(AdapterView<?> arg0, View arg1,
 			int arg2, long arg3) {
-		ServiceInfoViewModel selectedService = serviceInfoList.get(arg2);
-		Log.i(LOG_TAG, "Selected service at " + selectedService.getServiceIp());
+		NeighborViewModel selectedNeighbor = activeNeighborsViewModel.get(arg2);
+		selectedNeighbor.setNeighborUnreadCount(0);
+		Log.i(LOG_TAG, "Selected neighbor" + selectedNeighbor.getNeighborDesc());
 		Intent intent = new Intent();
-		intent.putExtra("ServiceName", selectedService.getServiceName());
-		intent.putExtra("ServiceAddress", selectedService.getServiceIp());
+		intent.putExtra("NeighborName", selectedNeighbor.getNeighborName());
+		intent.putExtra("NeighborAddress",
+				selectedNeighbor.getNeighborAddress());
+		intent.putExtra("NeighborIdentity", selectedNeighbor.getNeighborDesc());
 		intent.setClass(this, ChatActivity.class);
-		this.startActivityForResult(intent, RESULT_OK);
+		this.startActivityForResult(intent, 1);
+		this.notifyServiceListChanged();
 	}
 
 	@Override
 	protected void onActivityResult(int requestCode, int resultCode, Intent data) {
-		// TODO Auto-generated method stub
+		Log.i(LOG_TAG, "Got activity result. Requested:" + requestCode);
 		switch (resultCode) {
-		case RESULT_OK:
+		case 1:
+			this.applyNewSettings();
 			break;
 		default:
+			Log.w(LOG_TAG, "Activity error!" + resultCode);
 			break;
 		}
 	}
@@ -122,8 +172,9 @@ public class ConnectActivity extends Activity implements INotificationListener{
 		ListView servicesListView = (ListView) this
 				.findViewById(R.id.servicesListView);
 		ListAdapter servicesListAdapter = new SimpleAdapter(this,
-				serviceInfoList, android.R.layout.simple_list_item_2,
-				new String[] { "serviceName", "serviceDesc" }, new int[] {
+				this.activeNeighborsViewModel,
+				android.R.layout.simple_list_item_2, new String[] {
+						"neighborName", "neighborDesc" }, new int[] {
 						android.R.id.text1, android.R.id.text2 });
 		servicesListView.setAdapter(servicesListAdapter);
 	}
@@ -163,14 +214,14 @@ public class ConnectActivity extends Activity implements INotificationListener{
 	}
 
 	private void notifyServiceListChanged() {
-		ListView servicesListView = (ListView) this
-				.findViewById(R.id.servicesListView);
-		((SimpleAdapter) servicesListView.getAdapter()).notifyDataSetChanged();
-	}
-
-
-	private void showToast(String text) {
-		Toast.makeText(this, text, Toast.LENGTH_SHORT).show();
+		ConnectActivity.this.runOnUiThread(new Runnable() {
+			public void run() {
+				ListView servicesListView = (ListView) ConnectActivity.this
+						.findViewById(R.id.servicesListView);
+				((SimpleAdapter) servicesListView.getAdapter())
+						.notifyDataSetChanged();
+			}
+		});
 	}
 
 	private IHiNeighborService hiNeighborService = null;
@@ -182,6 +233,8 @@ public class ConnectActivity extends Activity implements INotificationListener{
 			hiNeighborService = (IHiNeighborService) service;
 			hiNeighborService.registerListener(ConnectActivity.this);
 			Log.v(LOG_TAG, "on service connected.");
+
+			refreshServices();
 		}
 
 		@Override
@@ -190,12 +243,54 @@ public class ConnectActivity extends Activity implements INotificationListener{
 		}
 	};
 
-	/* (non-Javadoc)
-	 * @see com.topblack.mobile.hineighbor.INotificationListener#notificationReceived(java.lang.String)
+	/*
+	 * (non-Javadoc)
+	 * 
+	 * @see
+	 * com.topblack.mobile.hineighbor.INotificationListener#notificationReceived
+	 * (java.lang.String)
 	 */
 	@Override
 	public void notificationReceived(String notificationId) {
 		// TODO Auto-generated method stub
 		Log.i(LOG_TAG, "Received notification " + notificationId);
+		Message message = hiNeighborService.getMessage(notificationId, false);
+		if (message == null) {
+			Log.w(LOG_TAG, "No message is got.");
+			return;
+		}
+		Neighbor messageSource = message.getSourceId();
+
+		synchronized (activeNeighborsViewModel) {
+			NeighborViewModel vm = new NeighborViewModel(messageSource);
+			if (!activeNeighborsViewModel.contains(vm)) {
+				activeNeighborsViewModel.add(vm);
+			}
+
+			int neighborIndex = activeNeighborsViewModel.indexOf(vm);
+			if (neighborIndex < 0) {
+				Log.v(LOG_TAG, "Unable to find the specific neighbor at "
+						+ neighborIndex);
+				return;
+			}
+			List<Message> messages = hiNeighborService.getUnreadMessages(
+					messageSource.getIdentity(), false);
+			activeNeighborsViewModel.get(neighborIndex).setNeighborUnreadCount(
+					messages.size());
+			this.notifyServiceListChanged();
+		}
+
+	}
+
+	/*
+	 * (non-Javadoc)
+	 * 
+	 * @see
+	 * com.topblack.mobile.hineighbor.IEnvironmentChangeListener#environmentChanged
+	 * ()
+	 */
+	@Override
+	public void environmentChanged() {
+		this.applyNewSettings();
 	}
 }

@@ -6,11 +6,15 @@
  */
 package com.topblack.mobile.hineighbor;
 
+import android.util.Log;
+
 /**
  * @author 10115154
  * 
  */
 public class Neighbor {
+	private static final String LOG_TAG = Neighbor.class.getSimpleName();
+	
 	private String nickName = null;
 	private String identity = null;
 	private String address = null;
@@ -24,11 +28,40 @@ public class Neighbor {
 			this.address = subNames[2];
 			this.valid = true;
 		} catch (Exception ex) {
+			Log.w(LOG_TAG, "Invalid neighbor, " + ex);
 			this.valid = false;
 		}
 	}
 	
 	
+	@Override
+	public int hashCode() {
+		final int prime = 31;
+		int result = 1;
+		result = prime * result
+				+ ((identity == null) ? 0 : identity.hashCode());
+		return result;
+	}
+
+
+	@Override
+	public boolean equals(Object obj) {
+		if (this == obj)
+			return true;
+		if (obj == null)
+			return false;
+		if (getClass() != obj.getClass())
+			return false;
+		Neighbor other = (Neighbor) obj;
+		if (identity == null) {
+			if (other.identity != null)
+				return false;
+		} else if (!identity.equals(other.identity))
+			return false;
+		return true;
+	}
+
+
 	public String toString() {
 		return this.nickName + "@" + this.identity + "@" + this.address;
 	}

@@ -7,14 +7,13 @@
 package com.topblack.mobile.hineighbor;
 
 
-import com.topblack.mobile.hineighbor.R;
-
 import android.app.Activity;
 import android.os.Bundle;
 import android.util.Log;
 import android.util.SparseBooleanArray;
 import android.view.KeyEvent;
 import android.widget.ArrayAdapter;
+import android.widget.EditText;
 import android.widget.ListAdapter;
 import android.widget.ListView;
 import android.widget.SimpleAdapter;
@@ -39,9 +38,6 @@ public class SettingsActivity extends Activity {
 		setContentView(R.layout.appsettings);
 
 		this.initViewModels();
-		this.initEventHandlers();
-
-		this.initMockData();
 
 		Log.i(LOG_TAG, "UI created!");
 	}
@@ -59,13 +55,6 @@ public class SettingsActivity extends Activity {
 		this.LoadSharedPreferences();
 	}
 
-	private void initEventHandlers() {
-
-	}
-
-	private void initMockData() {
-	}
-
 	private void notifyServiceListChanged() {
 		ListView servicesListView = (ListView) this
 				.findViewById(R.id.serviceControlListView);
@@ -76,10 +65,11 @@ public class SettingsActivity extends Activity {
 	public boolean onKeyDown(int keyCode, KeyEvent event) {
 		if (keyCode == KeyEvent.KEYCODE_BACK && event.getRepeatCount() == 0) {
 			this.StoreSharedPreferences();
-			this.setResult(RESULT_OK);
+			this.setResult(1);
+			this.finish();
 		}
 
-		return super.onKeyDown(keyCode, event);
+		return true;
 	}
 
 	private void LoadSharedPreferences() {
@@ -94,6 +84,9 @@ public class SettingsActivity extends Activity {
 					checkedService, false);
 			servicesListView.setItemChecked(i, isSettingSelected);
 		}
+		
+		EditText nickNameEdit = (EditText) this.findViewById(R.id.NickNameEdit);
+		nickNameEdit.setText(LocalEnvironment.getLocalName(this));
 	}
 
 	private void StoreSharedPreferences() {
@@ -107,5 +100,9 @@ public class SettingsActivity extends Activity {
 			LocalEnvironment.enableOption(this, availableServices[i],
 					boolArray.get(i));
 		}
+		
+		EditText nickNameEdit = (EditText) this.findViewById(R.id.NickNameEdit);
+		String nickName = nickNameEdit.getText().toString();
+		LocalEnvironment.setLocalName(this, nickName);
 	}
 }

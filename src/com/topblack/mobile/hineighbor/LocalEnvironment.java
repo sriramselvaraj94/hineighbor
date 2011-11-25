@@ -12,12 +12,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-import android.app.Activity;
 import android.content.Context;
 import android.content.SharedPreferences;
 import android.content.SharedPreferences.Editor;
-import android.net.ConnectivityManager;
-import android.net.NetworkInfo.State;
 import android.util.Log;
 
 /**
@@ -26,7 +23,8 @@ import android.util.Log;
  */
 public class LocalEnvironment {
 
-	private final static String LOG_TAG = LocalEnvironment.class.getSimpleName();
+	private final static String LOG_TAG = LocalEnvironment.class
+			.getSimpleName();
 
 	public static final String SERVICE_TYPE_TITLE_IM = "Instant Message";
 	public static final String SERVICE_TYPE_TITLE_VC = "Voice Chat";
@@ -35,17 +33,17 @@ public class LocalEnvironment {
 	public static final String SERVICE_TYPE_ID_IM = "_neighborim._tcp.local.";
 	public static final String SERVICE_TYPE_ID_VC = "_neighborvc._tcp.local.";
 	public static final String SERVICE_TYPE_ID_FT = "_neighborft._tcp.local.";
-	
+
 	public static final String DEFAULT_NAME = "Neighbor X";
-	
+
 	public static final String PREFERENCE_NAME = "HiNeighbor_Settings";
 
 	private static Map<String, String> supportedServices = new HashMap<String, String>();
-	
+
 	public static String LocalIdentity = null;
-	
+
 	public static int LocalIPAddress = 0;
-	
+
 	public static int LocalIPPort = 0;
 
 	static {
@@ -54,6 +52,16 @@ public class LocalEnvironment {
 		supportedServices.put(SERVICE_TYPE_TITLE_FT, SERVICE_TYPE_ID_FT);
 	}
 	
+	private static List<IEnvironmentChangeListener> listeners = new LinkedList<IEnvironmentChangeListener>();
+	
+	public static void registerListener(IEnvironmentChangeListener listener) {
+		listeners.add(listener);
+	}
+	
+	public static void unregisterListener(IEnvironmentChangeListener listener) {
+		listeners.remove(listener);
+	}
+
 	public static String[] getSupportedServiceTitles() {
 		Set<String> resultSet = LocalEnvironment.supportedServices.keySet();
 		Object[] values = resultSet.toArray();
@@ -61,7 +69,7 @@ public class LocalEnvironment {
 		for (int i = 0; i < result.length; i++) {
 			result[i] = values[i].toString();
 		}
-		
+
 		return result;
 	}
 
@@ -71,7 +79,8 @@ public class LocalEnvironment {
 		try {
 			SharedPreferences preferences = context.getSharedPreferences(
 					"HiNeighbor_Settings", 0);
-			for (String serviceTitle : LocalEnvironment.supportedServices.keySet()) {
+			for (String serviceTitle : LocalEnvironment.supportedServices
+					.keySet()) {
 				if (preferences.getBoolean(serviceTitle, false)) {
 					result.add(serviceTitle);
 				}
@@ -116,7 +125,7 @@ public class LocalEnvironment {
 			Log.e(LOG_TAG, ex.getMessage());
 		}
 	}
-	
+
 	public static String getLocalName(Context ctx) {
 		Log.i(LOG_TAG, ctx + ": get local name ...");
 
@@ -129,17 +138,39 @@ public class LocalEnvironment {
 			return DEFAULT_NAME;
 		}
 	}
-	
+
 	public static void setLocalName(Context ctx, String name) {
 		Log.i(LOG_TAG, ctx + ": set local name to " + name);
 		try {
-			SharedPreferences preferences = ctx.getSharedPreferences(
-					PREFERENCE_NAME, 0);
-			Editor editor = preferences.edit();
-			editor.putString("LocalName", name);
-			editor.commit();
+			if (name != null && name.length() > 0) {
+				SharedPreferences preferences = ctx.getSharedPreferences(
+						PREFERENCE_NAME, 0);
+				Editor editor = preferences.edit();
+				editor.putString("LocalName", name);
+				editor.commit();
+			}
+			
+			for (IEnvironmentChangeListener listener : listeners) {
+				listener.environmentChanged();
+			}
 		} catch (Exception ex) {
 			Log.e(LOG_TAG, ex.getMessage());
 		}
+	}
+	
+	public static String getFullName(Context ctx) {
+		StringBuffer sb = new StringBuffer();
+		
+		sb.append(getLocalName(ctx));
+		sb.append("@");
+		sb.append(LocalIdentity);
+		//TODO replace this hard coded service name
+		sb.append("._hineighbor._tcp.local.");
+		sb.append("@");
+		sb.append(DataConvertUtility.intIPv42String(LocalIPAddress));
+		sb.append(":");
+		sb.append(LocalIPPort);
+		
+		return sb.toString();
 	}
 }
