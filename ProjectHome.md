@@ -1,0 +1,1 @@
+The application is designed for android users to chat, share files with your neighbors in the local WIFI network.
